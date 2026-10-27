@@ -19,9 +19,22 @@
   /* ---------- тема и порядок разделов ---------- */
   const setTheme = t => { root.dataset.theme = t; store.set('el-theme', t); };
   const curTheme = () => root.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  $('#themeBtn').addEventListener('click', () => setTheme(curTheme() === 'dark' ? 'light' : 'dark'));
+  const toggleTheme = () => setTheme(curTheme() === 'dark' ? 'light' : 'dark');
+  $('#themeBtn').addEventListener('click', toggleTheme);
+  $('#menuTheme').addEventListener('click', toggleTheme);
+
+  /* ---------- мобильное меню ---------- */
+  const top = $('.top'), burger = $('#burger');
+  const setMenu = on => {
+    top.classList.toggle('open', on); document.body.classList.toggle('locked', on); $('main').inert = on;
+    burger.setAttribute('aria-expanded', String(on)); burger.setAttribute('aria-label', on ? 'Закрыть меню' : 'Открыть меню');
+  };
+  burger.addEventListener('click', () => setMenu(!top.classList.contains('open')));
+  top.addEventListener('click', e => { if (e.target.closest('a[href^="#"]') && top.classList.contains('open')) setMenu(false); });
+  addEventListener('resize', () => { if (innerWidth >= 1024 && top.classList.contains('open')) setMenu(false); });
 
   const LABEL = { cases: 'кейсы', montage: 'монтаж', avatars: 'аватарки', banners: 'баннеры', turnkey: 'под ключ', concepts: 'концепты', sites: 'сайты', apps: 'mini app', bots: 'боты' };
+  const COUNT = { cases: $$('#cases .case-card').length, avatars: D.ava.length, banners: D.ban.length, turnkey: D.proj.length, concepts: D.cases.length, sites: D.cases.filter(c => c.long).length, apps: D.apps.length, bots: D.bots.length };
   const ORDER = {
     design: ['avatars', 'banners', 'turnkey', 'cases', 'concepts', 'sites', 'apps', 'bots'],
     dev: ['sites', 'apps', 'bots', 'cases', 'concepts', 'turnkey', 'avatars', 'banners'],
@@ -35,6 +48,7 @@
     const links = [...order, 'learn'].map(k => [k, k === 'learn' ? 'обучение' : LABEL[k]]);
     $('#nav').innerHTML = links.filter(([k]) => k !== 'montage').slice(0, 7).map(([k, t]) => `<a href="#${k}">${t}</a>`).join('');
     $('#jump').innerHTML = links.map(([k, t]) => `<a href="#${k}">${t}</a>`).join('');
+    $('#menuNav').innerHTML = [...links, ['contact', 'заявка']].map(([k, t], i) => `<a href="#${k}" style="--i:${i}"><small>${String(i + 1).padStart(2, '0')}</small>${t}${COUNT[k] ? `<em>${COUNT[k]}</em>` : ''}</a>`).join('');
   }
   applyTopic(store.get('el-topic') || 'all');
 
@@ -103,11 +117,12 @@
   const banSrc = D.ban.map(b => b.src);
   $('#banCount').textContent = D.ban.length;
   const row = $('#banRow');
-  [...D.ban, ...D.ban].forEach((b, k) => {
-    const d = el('div', 'ban shine'); d.append(img(b.src, k < D.ban.length ? 'Баннер' : '', true, b.w, b.h));
-    if (k >= D.ban.length) d.setAttribute('aria-hidden', 'true');
-    d.dataset.cursor = 'смотреть'; d.addEventListener('click', () => openLightbox(banSrc, k % D.ban.length, 'Баннеры')); row.append(d);
+  const addBan = clone => D.ban.forEach((b, i) => {
+    const d = el('div', 'ban shine'); d.append(img(b.src, clone ? '' : 'Баннер', true, b.w, b.h));
+    if (clone) d.setAttribute('aria-hidden', 'true');
+    d.dataset.cursor = 'смотреть'; d.addEventListener('click', () => openLightbox(banSrc, i, 'Баннеры')); row.append(d);
   });
+  addBan(false); addBan(true);
   const ba = $('#banAll');
   D.ban.forEach((b, i) => { const d = el('div', 'bn shine'); d.style.setProperty('--i', i); d.append(img(b.src, 'Баннер', true, b.w, b.h)); pressable(d, () => openLightbox(banSrc, i, 'Баннеры'), 'Открыть баннер'); ba.append(d); });
 
@@ -211,8 +226,8 @@
   /* ---------- появление и активный пункт меню ---------- */
   const rio = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) { en.target.classList.add('in'); rio.unobserve(en.target); } }), { rootMargin: '0px 0px -8% 0px' });
   $$('.rv,.grow').forEach(n => rio.observe(n));
-  const navIO = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) $$('#nav a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + en.target.id)); }), { rootMargin: '-40% 0px -55% 0px' });
-  $$('#sections > section, #learn').forEach(s => navIO.observe(s));
+  const navIO = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) $$('#nav a, #menuNav a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + en.target.id)); }), { rootMargin: '-40% 0px -55% 0px' });
+  $$('#sections > section, #reviews, #learn, #contact').forEach(s => navIO.observe(s));
 
   /* ---------- оверлеи ---------- */
   let lastFocus = null;
@@ -261,8 +276,9 @@
 
   // отзывы: две ленты навстречу друг другу
   const R = D.reviews || [];
+  const revAdd = [];
   const rcard = (r, clone) => { const d = el('article', 'rcard'); d.innerHTML = `<span class="q">“</span><p>${r.text.replace(/</g, '&lt;')}</p><div class="meta"><span>${r.date.split('-').reverse().join('.')}</span><a href="https://t.me/reviewselement/${r.id}" target="_blank" rel="noopener"${clone ? ' tabindex="-1"' : ''}>в Telegram</a></div>`; if (clone) d.setAttribute('aria-hidden', 'true'); return d; };
-  [[$('#revRow1'), R.filter((_, i) => i % 2 === 0)], [$('#revRow2'), R.filter((_, i) => i % 2 === 1)]].forEach(([row, list]) => { if (!row) return; list.forEach(r => row.append(rcard(r))); list.forEach(r => row.append(rcard(r, true))); });
+  [[$('#revRow1'), R.filter((_, i) => i % 2 === 0)], [$('#revRow2'), R.filter((_, i) => i % 2 === 1)]].forEach(([row, list]) => { if (!row) return; list.forEach(r => row.append(rcard(r))); list.forEach(r => row.append(rcard(r, true))); revAdd.push(() => list.forEach(r => row.append(rcard(r, true)))); });
 
   // еле заметные частицы на фоне
   const dust = $('#dust');
@@ -283,7 +299,122 @@
     requestAnimationFrame(tick);
   }
 
+  /* ---------- бегущие ленты: едут сами, пальцем листаются, мышкой тянутся ---------- */
+  const runners = [];
+  function runner(box, speed, addCopy) {
+    const track = box.firstElementChild, dir = track.classList.contains('rev') ? -1 : 1, n0 = track.children.length / 2;
+    let period = 0, pos = 0, hover = false, hold = false, resumeAt = 0, seen = false;
+    // петля бесшовна, только если за одним периодом остаётся хотя бы экран: на широких мониторах достраиваем копии
+    const measure = () => {
+      const k = track.children; if (n0 < 1) return; period = k[n0].offsetLeft - k[0].offsetLeft;
+      for (let g = 0; g < 8 && period && track.scrollWidth - box.clientWidth < period + 24; g++) addCopy();
+    };
+    const wrap = () => { if (period) { if (pos >= period) pos -= period; else if (pos < 0) pos += period; } box.scrollLeft = pos; };
+    measure(); new ResizeObserver(measure).observe(track);
+    pos = period / 2; wrap();
+    const pause = ms => { resumeAt = performance.now() + ms; };
+    // любая прокрутка не от нас (палец, тачпад, колесо) ставит ленту на паузу
+    box.addEventListener('scroll', () => { if (Math.abs(box.scrollLeft - pos) > 2) { pos = box.scrollLeft; pause(1600); } }, { passive: true });
+    box.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') hover = true; });
+    box.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') hover = false; });
+    box.addEventListener('touchstart', () => { hold = true; }, { passive: true });
+    const release = () => { hold = false; pause(1600); };
+    box.addEventListener('touchend', release, { passive: true });
+    box.addEventListener('touchcancel', release, { passive: true });
+    box.addEventListener('focusin', e => { if (e.target.matches(':focus-visible')) hold = true; });
+    box.addEventListener('focusout', release);
+    let x0 = null, p0 = 0, moved = false, swallow = false;
+    box.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' || e.button) return; x0 = e.clientX; p0 = pos; moved = false; e.preventDefault(); });
+    const endDrag = () => { if (x0 == null) return; x0 = null; box.classList.remove('drag'); if (moved) { swallow = true; setTimeout(() => swallow = false, 0); pause(1200); } };
+    addEventListener('pointermove', e => {
+      if (x0 == null) return; if (!(e.buttons & 1)) return endDrag(); const d = e.clientX - x0;
+      if (!moved && Math.abs(d) > 5) { moved = true; box.classList.add('drag'); }
+      if (moved) { pos = p0 - d; wrap(); }
+    });
+    addEventListener('pointerup', endDrag); addEventListener('pointercancel', endDrag); addEventListener('blur', endDrag);
+    box.addEventListener('click', e => { if (swallow) { e.stopPropagation(); e.preventDefault(); } }, true);
+    new IntersectionObserver(([en]) => { seen = en.isIntersecting; }).observe(box);
+    runners.push(dt => { if (!seen || hover || hold || x0 != null || performance.now() < resumeAt) return; pos += dir * speed * dt; wrap(); });
+  }
+  runner($('#banRow').parentElement, fine ? 46 : 34, () => addBan(true));
+  runner($('#shelf').parentElement, fine ? 38 : 30, () => D.apps.forEach(a => shelf.append(appCard(a, true))));
+  runner($('#revRow1').parentElement, fine ? 40 : 30, revAdd[0]);
+  runner($('#revRow2').parentElement, fine ? 40 : 30, revAdd[1]);
+  if (!reduce) { let lt = 0; const loop = t => { const dt = lt ? Math.min((t - lt) / 1000, .05) : 0; lt = t; if (!document.hidden) runners.forEach(f => f(dt)); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+
+  /* ---------- карусели на телефоне: счётчик и полоска прогресса ---------- */
+  $$('.rail').filter(r => !r.closest('.case-card')).forEach(r => {
+    const meta = el('div', 'rail-meta', '<span class="n"></span><i class="bar"><b></b></i>'); r.after(meta);
+    const upd = () => {
+      const kids = [...r.children].filter(k => k.offsetParent !== null); if (kids.length < 2) return;
+      const max = r.scrollWidth - r.clientWidth, step = kids[1].offsetLeft - kids[0].offsetLeft || 1;
+      const i = r.scrollLeft >= max - 4 ? kids.length : Math.min(kids.length, Math.round(r.scrollLeft / step) + 1);
+      $('.n', meta).textContent = `${i} / ${kids.length}`;
+      meta.style.setProperty('--w', Math.max(10, r.clientWidth / r.scrollWidth * 100) + '%');
+      meta.style.setProperty('--p', max > 0 ? Math.min(1, r.scrollLeft / max) : 0);
+    };
+    r.addEventListener('scroll', upd, { passive: true }); addEventListener('resize', upd); upd();
+  });
+
+  /* ---------- цифры на первом экране ---------- */
+  const works = D.ava.length + D.ban.length + D.proj.reduce((s, p) => s + p.imgs.length, 0) + D.cases.length + D.apps.length;
+  const STATS = [[works, '', 'работ на сайте'], [D.proj.length, '', 'наборов под ключ'], [500, '+', 'отзывов клиентов'], [90, '+', 'учеников']];
+  const sb = $('#stats');
+  sb.innerHTML = STATS.map(([n, p, t]) => `<div><b><span data-n="${n}">${reduce ? n : 0}</span>${p ? `<i>${p}</i>` : ''}</b><span>${t}</span></div>`).join('');
+  if (!reduce) {
+    const sio = new IntersectionObserver(([en]) => {
+      if (!en.isIntersecting) return; sio.disconnect();
+      const nums = $$('[data-n]', sb), t0 = performance.now();
+      const step = t => { const k = Math.min(1, (t - t0) / 1100), e = 1 - Math.pow(1 - k, 3); nums.forEach(n => n.textContent = Math.round(+n.dataset.n * e)); if (k < 1) requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+    });
+    if (intro.hidden) sio.observe(sb); else $('#introGo').addEventListener('click', () => sio.observe(sb));
+  }
+
+  /* ---------- ленты крест-накрест ---------- */
+  const MARK = '<svg viewBox="0 0 100 100" aria-hidden="true"><g fill="currentColor"><rect x="14" y="20" width="72" height="13" rx="6.5"/><rect x="14" y="43.5" width="72" height="13" rx="6.5"/><rect x="14" y="67" width="72" height="13" rx="6.5"/></g></svg>';
+  $$('.tape-run').forEach(t => { const g = t.dataset.tape.split('|').map(w => `<span>${w}${MARK}</span>`).join(''); t.innerHTML = g.repeat(6); });
+
+  /* ---------- фоновые фигуры с лёгким параллаксом ---------- */
+  const deco = $('#deco'), main = $('main'); let shapes = [];
+  let built = { w: 0, h: 0 };
+  function buildDeco() {
+    const H = main.offsetHeight, W = main.clientWidth, mob = innerWidth < 761, n = Math.round(H / (mob ? 820 : 440));
+    // адресная строка на телефоне и мелкие сдвиги высоты не пересобирают фон, иначе фигуры дёргаются
+    if (W === built.w && Math.abs(H - built.h) < 200) return; built = { w: W, h: H };
+    const tapesTop = $('.tapes').offsetTop, frag = document.createDocumentFragment();
+    let seed = 11; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+    const TYPES = ['pill', 'ring', 'mk', 'plus', 'pill f', 'grid'];
+    shapes = [];
+    for (let k = 0; k < n; k++) {
+      const type = TYPES[k % TYPES.length], right = k % 2 === 1;
+      const y = (k + .2 + rnd() * .6) / n * 100;
+      if (y / 100 * H < tapesTop) { rnd(); rnd(); rnd(); continue; }
+      let s = type.startsWith('pill') ? 90 + rnd() * 100 : type === 'ring' ? 70 + rnd() * 130 : type === 'mk' ? 44 + rnd() * 50 : type === 'plus' ? 14 + rnd() * 10 : 56 + rnd() * 50;
+      if (mob) s *= .75;
+      // фигуры живут в полях за краем контента и частично уходят за край, чтобы не лезть под текст
+      const side = Math.max(0, (W - 1280) / 2);
+      const x = (right ? W - side - s * (.35 + rnd() * .3) : side - s * (.65 + rnd() * .3)).toFixed(0) + 'px';
+      const d = el('div', 'dc'), i = el('i', type, type === 'mk' ? MARK : null);
+      d.style.cssText = `--x:${x};--y:${y.toFixed(2)}%;--s:${Math.round(s)}px`;
+      i.style.cssText = `--t:${(10 + rnd() * 10).toFixed(1)}s;--dl:${(-rnd() * 10).toFixed(1)}s;--r0:${Math.round(rnd() * 40 - 20)}deg;--r1:${Math.round(rnd() * 40 - 20)}deg`;
+      d.append(i); frag.append(d);
+      shapes.push({ d, top: y / 100 * H, k: (.06 + rnd() * .2) * (k % 3 === 0 ? -1 : 1) });
+    }
+    deco.replaceChildren(frag); para();
+  }
+  let pTick = false;
+  const para = () => {
+    pTick = false; const c = scrollY + innerHeight / 2, lim = innerHeight * 1.4;
+    shapes.forEach(s => { const off = c - s.top; if (Math.abs(off) < lim) s.d.style.transform = `translate3d(0,${(-off * s.k).toFixed(1)}px,0)`; });
+  };
+  if (!reduce) addEventListener('scroll', () => { if (!pTick) { pTick = true; requestAnimationFrame(para); } }, { passive: true });
+  let dT; const reDeco = () => { clearTimeout(dT); dT = setTimeout(buildDeco, 250); };
+  addEventListener('resize', reDeco); new ResizeObserver(reDeco).observe(main);
+  buildDeco();
+
   addEventListener('keydown', e => {
+    if (e.key === 'Escape' && top.classList.contains('open')) { setMenu(false); burger.focus(); return; }
     if (!lb.hidden) { if (e.key === 'Escape') closeLb(); if (e.key === 'ArrowRight') lbStep(1); if (e.key === 'ArrowLeft') lbStep(-1); }
     else if (!vw.hidden) { if (e.key === 'Escape') closeV(); if (e.key === 'ArrowRight') vStep(1); if (e.key === 'ArrowLeft') vStep(-1); }
     else if (!cv.hidden && e.key === 'Escape') closeCase();
