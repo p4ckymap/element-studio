@@ -441,7 +441,7 @@ main{position:relative;z-index:1}
 .marquee img{-webkit-user-drag:none;user-select:none}
 
 /* ровная бегущая строка под первым экраном */
-.tape{margin-top:clamp(40px,5vw,72px);overflow:hidden;border-block:1px solid var(--line);background:var(--surface)}
+.tape{margin-top:0;overflow:hidden;border-block:1px solid var(--line);background:var(--surface)}
 .tape-run{display:flex;width:max-content;animation:tape 50s linear infinite}
 .tape-run span{display:flex;align-items:center;gap:28px;padding:22px 28px 22px 0;font:600 clamp(20px,2.2vw,30px)/1 var(--display);letter-spacing:-.03em;text-transform:lowercase;white-space:nowrap}
 .tape-run i{width:8px;height:8px;border-radius:50%;background:var(--accent);flex:none}
@@ -524,3 +524,7 @@ main{position:relative;z-index:1}
 .chips button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 .expand-bar:has(.chips){padding-left:8px}
 @media (max-width:760px){.ava-wall{height:460px}.wk-grid{columns:3 90px;column-gap:8px}.wk-grid .bn{margin-bottom:8px}.chips{flex-wrap:nowrap;gap:2px;min-width:0;overflow-x:auto;scrollbar-width:none}.chips button{flex:none;padding:0 10px;height:36px;font-size:13px}.chips button small{display:none}.expand-bar .btn{padding:0 14px}}
+
+/* первый экран ровно на высоту окна: бегущая строка начинается под ним и не заглядывает на лендинг */
+.hero{min-height:100vh;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding-bottom:clamp(32px,4vw,56px)}
+.hero>.wrap{width:min(1280px,100%)}
