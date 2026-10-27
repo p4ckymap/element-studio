@@ -7,7 +7,10 @@
   const fine = matchMedia('(hover:hover) and (pointer:fine)').matches;
   const store = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
-  const img = (src, alt = '', lazy = true, w, h) => { const i = new Image(); if (lazy) i.loading = 'lazy'; i.decoding = 'async'; i.alt = alt; if (w && h) { i.width = w; i.height = h; } i.src = src; return i; };
+  const img = (src, alt = '', lazy = true, w, h) => { const i = new Image(); if (lazy) i.loading = 'lazy'; i.decoding = 'async'; i.alt = alt; if (w && h) { i.width = w; i.height = h; } i.src = /^media\/(ava|ban|proj|menus)\//.test(src) ? src + '?wm=1' : src; i.draggable = false; return i; };
+  // работы не сохраняются правым кликом и не перетаскиваются
+  document.addEventListener('contextmenu', e => { if (e.target.closest('img, .wk, .bn, .ava, .ban, .tk, .hw-it, .mi, .lb-stage')) e.preventDefault(); });
+  document.addEventListener('dragstart', e => { if (e.target.tagName === 'IMG') e.preventDefault(); });
   const pressable = (node, fn, label, cursor = 'смотреть') => {
     node.tabIndex = 0; node.setAttribute('role', 'button'); if (label) node.setAttribute('aria-label', label); node.dataset.cursor = cursor;
     node.addEventListener('click', fn);
@@ -33,12 +36,12 @@
   top.addEventListener('click', e => { if (e.target.closest('a[href^="#"]') && top.classList.contains('open')) setMenu(false); });
   addEventListener('resize', () => { if (innerWidth >= 1024 && top.classList.contains('open')) setMenu(false); });
 
-  const LABEL = { cases: 'кейсы', montage: 'монтаж', avatars: 'аватарки', banners: 'баннеры', turnkey: 'под ключ', concepts: 'концепты', sites: 'сайты', apps: 'mini app', bots: 'боты' };
-  const COUNT = { cases: $$('#cases .case-card').length, avatars: D.ava.length, banners: D.ban.length, turnkey: D.proj.length, concepts: D.cases.length, sites: D.cases.filter(c => c.long).length, apps: D.apps.length, bots: D.bots.length };
+  const LABEL = { cases: 'кейсы', montage: 'монтаж', avatars: 'аватарки и баннеры', turnkey: 'под ключ', concepts: 'концепты', sites: 'сайты', apps: 'mini app', bots: 'боты' };
+  const COUNT = { cases: $$('#cases .case-card').length, avatars: D.ava.length + D.ban.length, turnkey: D.proj.length, concepts: D.cases.length, sites: D.cases.filter(c => c.long).length, apps: D.apps.length, bots: D.bots.length };
   const ORDER = {
-    design: ['avatars', 'banners', 'turnkey', 'cases', 'concepts', 'sites', 'apps', 'bots'],
-    dev: ['sites', 'apps', 'bots', 'cases', 'concepts', 'turnkey', 'avatars', 'banners'],
-    montage: ['montage', 'avatars', 'banners', 'turnkey', 'cases', 'concepts', 'sites', 'apps', 'bots'],
+    design: ['avatars', 'turnkey', 'cases', 'concepts', 'sites', 'apps', 'bots'],
+    dev: ['sites', 'apps', 'bots', 'cases', 'concepts', 'turnkey', 'avatars'],
+    montage: ['montage', 'avatars', 'turnkey', 'cases', 'concepts', 'sites', 'apps', 'bots'],
   };
   ORDER.all = ORDER.design;
   function applyTopic(topic) {
@@ -74,7 +77,7 @@
   const mix = [];
   for (let i = 0; i < 12; i++) {
     mix.push({ src: D.ava[(i * 4) % D.ava.length], ar: 1, cls: 'av', tag: 'аватарка', to: 'avatars' });
-    { const b = wide[(i * 3) % wide.length]; mix.push({ src: b.src, ar: ratio(b), cls: '', tag: 'баннер', to: 'banners' }); }
+    { const b = wide[(i * 3) % wide.length]; mix.push({ src: b.src, ar: ratio(b), cls: '', tag: 'баннер', to: 'avatars' }); }
     if (i % 2 === 0) mix.push({ src: D.apps[(i / 2) % D.apps.length].screens[0], ar: 390 / 844, cls: 'ph', tag: 'mini app', to: 'apps' });
     if (i % 3 === 0) mix.push({ src: D.cases[(i / 3) % D.cases.length].cover, ar: 1.6, cls: '', tag: 'концепт', to: 'concepts' });
     if (i % 3 === 1) { const p = D.proj[i % D.proj.length]; const m = p.imgs.find(x => ratio(x) > 1.3) || p.imgs[0]; mix.push({ src: m.src, ar: ratio(m), cls: '', tag: 'под ключ', to: 'turnkey' }); }
@@ -90,41 +93,56 @@
     hw.append(colEl);
   });
 
-  /* ---------- аватарки: колонки летят вверх и вниз ---------- */
-  $('#avaCount').textContent = D.ava.length;
+  /* ---------- аватарки и баннеры вперемешку: колонки летят вверх и вниз ---------- */
+  const WORKS = (() => {
+    const av = D.ava.map(src => ({ src, w: 1, h: 1, kind: 'ava' })), bn = D.ban.map(b => ({ src: b.src, w: b.w, h: b.h, kind: 'ban' }));
+    // равномерно перемешиваем: каждая работа встаёт на свою долю длины списка
+    return [...av.map((x, i) => [(i + .5) / av.length, x]), ...bn.map((x, i) => [(i + .25) / bn.length, x])].sort((p, q) => p[0] - q[0]).map(p => p[1]);
+  })();
+  const KIND = { ava: 'Аватарка', ban: 'Баннер' };
+  $('#avaCount').textContent = WORKS.length;
   const wall = $('#avaWall');
-  const colsFor = () => matchMedia('(max-width:760px)').matches ? 4 : matchMedia('(max-width:1100px)').matches ? 7 : 10;
+  const colsFor = () => matchMedia('(max-width:760px)').matches ? 3 : matchMedia('(max-width:1100px)').matches ? 4 : 6;
+  const allSrc = WORKS.map(x => x.src);
+  const dims = x => x.kind === 'ban' ? [x.w, x.h] : [480, 480];
   let wallCols = 0;
   function buildWall() {
-    const n = colsFor(); if (n === wallCols) return; wallCols = n; wall.innerHTML = '';
-    for (let c = 0; c < n; c++) {
-      const colEl = el('div', 'ava-col' + (c % 2 ? ' rev' : '')); colEl.style.setProperty('--d', `${44 + (c % 3) * 9}s`);
-      const items = D.ava.filter((_, i) => i % n === c);
-      [...items, ...items].forEach((s, k) => {
-        const a = el('div', 'ava shine'); a.append(img(s, k < items.length ? 'Аватарка' : ''));
-        if (k >= items.length) a.setAttribute('aria-hidden', 'true');
-        a.dataset.cursor = 'смотреть'; a.addEventListener('click', () => openLightbox(D.ava, D.ava.indexOf(s), 'Аватарки'));
-        colEl.append(a);
+    const n = colsFor(); if (n === wallCols) return; wallCols = n; wall.innerHTML = ''; wall.style.setProperty('--cols', n);
+    // раскладываем в самую короткую колонку, чтобы колонки были примерно одной высоты
+    const cols = Array.from({ length: n }, () => ({ h: 0, items: [] }));
+    WORKS.forEach(x => { const c = cols.reduce((m, c) => c.h < m.h ? c : m); c.items.push(x); c.h += x.h / x.w + .08; });
+    cols.forEach((c, ci) => {
+      const colEl = el('div', 'ava-col' + (ci % 2 ? ' rev' : ''));
+      [...c.items, ...c.items].forEach((x, k) => {
+        const d = el('div', `wk shine k-${x.kind}`); d.style.aspectRatio = `${x.w}/${x.h}`;
+        d.append(img(x.src, k < c.items.length ? KIND[x.kind] : '', true, ...dims(x)));
+        if (k >= c.items.length) d.setAttribute('aria-hidden', 'true');
+        d.dataset.cursor = 'смотреть'; d.addEventListener('click', () => openLightbox(allSrc, WORKS.indexOf(x), 'Аватарки и баннеры'));
+        colEl.append(d);
       });
       wall.append(colEl);
-    }
+    });
+    // скорость одинаковая для всех колонок, сколько бы в них ни было работ
+    $$('.ava-col', wall).forEach(c => c.style.setProperty('--d', `${Math.max(30, c.offsetHeight / 2 / (n === 3 ? 26 : 34)).toFixed(1)}s`));
   }
   buildWall(); addEventListener('resize', buildWall);
-  const ag = $('#avaGrid');
-  D.ava.forEach((s, i) => { const a = el('div', 'ava shine'); a.style.setProperty('--i', i); a.append(img(s, 'Аватарка')); pressable(a, () => openLightbox(D.ava, i, 'Аватарки'), 'Открыть аватарку'); ag.append(a); });
 
-  /* ---------- баннеры ---------- */
-  const banSrc = D.ban.map(b => b.src);
-  $('#banCount').textContent = D.ban.length;
-  const row = $('#banRow');
-  const addBan = clone => D.ban.forEach((b, i) => {
-    const d = el('div', 'ban shine'); d.append(img(b.src, clone ? '' : 'Баннер', true, b.w, b.h));
-    if (clone) d.setAttribute('aria-hidden', 'true');
-    d.dataset.cursor = 'смотреть'; d.addEventListener('click', () => openLightbox(banSrc, i, 'Баннеры')); row.append(d);
-  });
-  addBan(false); addBan(true);
-  const ba = $('#banAll');
-  D.ban.forEach((b, i) => { const d = el('div', 'bn shine'); d.style.setProperty('--i', i); d.append(img(b.src, 'Баннер', true, b.w, b.h)); pressable(d, () => openLightbox(banSrc, i, 'Баннеры'), 'Открыть баннер'); ba.append(d); });
+  // «показать все работы»: сетка с фильтром
+  const ag = $('#avaGrid');
+  function fillGrid(kind) {
+    const list = WORKS.filter(x => kind === 'all' || x.kind === kind), srcs = list.map(x => x.src);
+    const title = kind === 'ava' ? 'Аватарки' : kind === 'ban' ? 'Баннеры' : 'Аватарки и баннеры';
+    ag.innerHTML = '';
+    list.forEach((x, i) => {
+      const d = el('div', `bn shine k-${x.kind}`); d.style.setProperty('--i', i);
+      d.append(img(x.src, KIND[x.kind], true, ...dims(x)));
+      pressable(d, () => openLightbox(srcs, i, title), `Открыть: ${KIND[x.kind].toLowerCase()}`); ag.append(d);
+    });
+  }
+  const chips = $('#wkFilter');
+  chips.innerHTML = [['all', 'Все', WORKS.length], ['ava', 'Аватарки', D.ava.length], ['ban', 'Баннеры', D.ban.length]].map(([k, t, c]) => `<button data-k="${k}" aria-pressed="${k === 'all'}">${t}<small>${c}</small></button>`).join('');
+  chips.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; $$('button', chips).forEach(x => x.setAttribute('aria-pressed', String(x === b))); fillGrid(b.dataset.k); });
+  fillGrid('all');
 
   // раскрыть / свернуть: кнопка сверху у раскрытого блока и снизу под ним
   $$('[data-open]').forEach(btn => btn.addEventListener('click', () => {
@@ -336,7 +354,6 @@
     new IntersectionObserver(([en]) => { seen = en.isIntersecting; }).observe(box);
     runners.push(dt => { if (!seen || hover || hold || x0 != null || performance.now() < resumeAt) return; pos += dir * speed * dt; wrap(); });
   }
-  runner($('#banRow').parentElement, fine ? 46 : 34, () => addBan(true));
   runner($('#shelf').parentElement, fine ? 38 : 30, () => D.apps.forEach(a => shelf.append(appCard(a, true))));
   runner($('#revRow1').parentElement, fine ? 40 : 30, revAdd[0]);
   runner($('#revRow2').parentElement, fine ? 40 : 30, revAdd[1]);
@@ -356,62 +373,9 @@
     r.addEventListener('scroll', upd, { passive: true }); addEventListener('resize', upd); upd();
   });
 
-  /* ---------- цифры на первом экране ---------- */
-  const works = D.ava.length + D.ban.length + D.proj.reduce((s, p) => s + p.imgs.length, 0) + D.cases.length + D.apps.length;
-  const STATS = [[works, '', 'работ на сайте'], [D.proj.length, '', 'наборов под ключ'], [500, '+', 'отзывов клиентов'], [90, '+', 'учеников']];
-  const sb = $('#stats');
-  sb.innerHTML = STATS.map(([n, p, t]) => `<div><b><span data-n="${n}">${reduce ? n : 0}</span>${p ? `<i>${p}</i>` : ''}</b><span>${t}</span></div>`).join('');
-  if (!reduce) {
-    const sio = new IntersectionObserver(([en]) => {
-      if (!en.isIntersecting) return; sio.disconnect();
-      const nums = $$('[data-n]', sb), t0 = performance.now();
-      const step = t => { const k = Math.min(1, (t - t0) / 1100), e = 1 - Math.pow(1 - k, 3); nums.forEach(n => n.textContent = Math.round(+n.dataset.n * e)); if (k < 1) requestAnimationFrame(step); };
-      requestAnimationFrame(step);
-    });
-    if (intro.hidden) sio.observe(sb); else $('#introGo').addEventListener('click', () => sio.observe(sb));
-  }
-
-  /* ---------- ленты крест-накрест ---------- */
+  /* ---------- бегущая строка под первым экраном ---------- */
   const MARK = '<svg viewBox="0 0 100 100" aria-hidden="true"><g fill="currentColor"><rect x="14" y="20" width="72" height="13" rx="6.5"/><rect x="14" y="43.5" width="72" height="13" rx="6.5"/><rect x="14" y="67" width="72" height="13" rx="6.5"/></g></svg>';
-  $$('.tape-run').forEach(t => { const g = t.dataset.tape.split('|').map(w => `<span>${w}${MARK}</span>`).join(''); t.innerHTML = g.repeat(6); });
-
-  /* ---------- фоновые фигуры с лёгким параллаксом ---------- */
-  const deco = $('#deco'), main = $('main'); let shapes = [];
-  let built = { w: 0, h: 0 };
-  function buildDeco() {
-    const H = main.offsetHeight, W = main.clientWidth, mob = innerWidth < 761, n = Math.round(H / (mob ? 820 : 440));
-    // адресная строка на телефоне и мелкие сдвиги высоты не пересобирают фон, иначе фигуры дёргаются
-    if (W === built.w && Math.abs(H - built.h) < 200) return; built = { w: W, h: H };
-    const tapesTop = $('.tapes').offsetTop, frag = document.createDocumentFragment();
-    let seed = 11; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
-    const TYPES = ['pill', 'ring', 'mk', 'plus', 'pill f', 'grid'];
-    shapes = [];
-    for (let k = 0; k < n; k++) {
-      const type = TYPES[k % TYPES.length], right = k % 2 === 1;
-      const y = (k + .2 + rnd() * .6) / n * 100;
-      if (y / 100 * H < tapesTop) { rnd(); rnd(); rnd(); continue; }
-      let s = type.startsWith('pill') ? 90 + rnd() * 100 : type === 'ring' ? 70 + rnd() * 130 : type === 'mk' ? 44 + rnd() * 50 : type === 'plus' ? 14 + rnd() * 10 : 56 + rnd() * 50;
-      if (mob) s *= .75;
-      // фигуры живут в полях за краем контента и частично уходят за край, чтобы не лезть под текст
-      const side = Math.max(0, (W - 1280) / 2);
-      const x = (right ? W - side - s * (.35 + rnd() * .3) : side - s * (.65 + rnd() * .3)).toFixed(0) + 'px';
-      const d = el('div', 'dc'), i = el('i', type, type === 'mk' ? MARK : null);
-      d.style.cssText = `--x:${x};--y:${y.toFixed(2)}%;--s:${Math.round(s)}px`;
-      i.style.cssText = `--t:${(10 + rnd() * 10).toFixed(1)}s;--dl:${(-rnd() * 10).toFixed(1)}s;--r0:${Math.round(rnd() * 40 - 20)}deg;--r1:${Math.round(rnd() * 40 - 20)}deg`;
-      d.append(i); frag.append(d);
-      shapes.push({ d, top: y / 100 * H, k: (.06 + rnd() * .2) * (k % 3 === 0 ? -1 : 1) });
-    }
-    deco.replaceChildren(frag); para();
-  }
-  let pTick = false;
-  const para = () => {
-    pTick = false; const c = scrollY + innerHeight / 2, lim = innerHeight * 1.4;
-    shapes.forEach(s => { const off = c - s.top; if (Math.abs(off) < lim) s.d.style.transform = `translate3d(0,${(-off * s.k).toFixed(1)}px,0)`; });
-  };
-  if (!reduce) addEventListener('scroll', () => { if (!pTick) { pTick = true; requestAnimationFrame(para); } }, { passive: true });
-  let dT; const reDeco = () => { clearTimeout(dT); dT = setTimeout(buildDeco, 250); };
-  addEventListener('resize', reDeco); new ResizeObserver(reDeco).observe(main);
-  buildDeco();
+  $$('.tape-run').forEach(t => { const g = t.dataset.tape.split('|').map(w => `<span>${w}<i>${MARK}</i></span>`).join(''); t.innerHTML = g.repeat(4); });
 
   addEventListener('keydown', e => {
     if (e.key === 'Escape' && top.classList.contains('open')) { setMenu(false); burger.focus(); return; }

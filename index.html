@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600&family=Onest:wght@400;500;600&display=swap">
 <script>try{var t=localStorage.getItem('el-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
-<link rel="stylesheet" href="css/style.css?v=10h">
+<link rel="stylesheet" href="css/style.css?v=13">
 </head>
 <body>
 <canvas class="dust" id="dust" aria-hidden="true"></canvas>
@@ -40,9 +40,7 @@
 </header>
 
 <main id="top">
-  <div class="deco" id="deco" aria-hidden="true"></div>
   <section class="hero">
-    <div class="hero-dots" aria-hidden="true"></div>
     <div class="wrap hero-grid">
       <div>
         <p class="label">студия element: дизайн, монтаж и разработка</p>
@@ -52,17 +50,13 @@
           <a class="btn btn-ink" href="#contact">Оставить заявку</a>
           <a class="btn btn-line" href="https://t.me/elementdsgn" target="_blank" rel="noopener">Связаться лично</a>
         </div>
-        <div class="stats" id="stats"></div>
         <div class="jump" id="jump"></div>
       </div>
       <div class="hero-wall" id="heroWall"></div>
     </div>
   </section>
 
-  <div class="tapes" aria-hidden="true">
-    <div class="tape tape-a"><div class="tape-run" data-tape="аватарки|баннеры|оформление под ключ|сайты|telegram-боты|mini app|монтаж|обучение"></div></div>
-    <div class="tape tape-b"><div class="tape-run rev" data-tape="дизайн|монтаж|код|под ключ|в одном стиле|в срок"></div></div>
-  </div>
+  <div class="tape" aria-hidden="true"><div class="tape-run" data-tape="аватарки|баннеры|оформление под ключ|сайты|telegram-боты|mini app|монтаж|обучение"></div></div>
 
   <div id="sections">
     <section class="sec" id="montage" data-key="montage" hidden>
@@ -116,23 +110,12 @@
 
     <section class="sec" id="avatars" data-key="avatars">
       <div class="wrap">
-        <div class="sec-head"><h2 class="h2">аватарки<span class="count" id="avaCount"></span></h2><p>Для каналов, чатов и ботов. Нажмите, чтобы посмотреть крупно.</p></div>
-        </div>
+        <div class="sec-head"><h2 class="h2">аватарки и баннеры<span class="count" id="avaCount"></span></h2><p>Для каналов, чатов, ботов и постов. Нажмите на работу, чтобы посмотреть крупно.</p></div>
+      </div>
       <div class="ava-wall" id="avaWall"></div>
       <div class="wrap">
-        <div class="expand" id="avaAll" hidden><div class="expand-bar"><span class="label">все аватарки</span><button class="btn btn-line" data-close="avaAll">Свернуть</button></div><div class="ava-grid" id="avaGrid"></div><div class="more"><button class="btn btn-line" data-close="avaAll">Свернуть</button></div></div>
-        <div class="more"><button class="btn btn-line" data-open="avaAll">Показать все</button></div>
-      </div>
-    </section>
-
-    <section class="sec" id="banners" data-key="banners">
-      <div class="wrap">
-        <div class="sec-head"><h2 class="h2">баннеры и посты<span class="count" id="banCount"></span></h2><p><span class="t-desk">Наведите, чтобы остановить ленту. Можно тянуть мышкой.</span><span class="t-touch">Лента листается пальцем влево и вправо.</span></p></div>
-      </div>
-      <div class="marquee"><div class="marquee-track" id="banRow"></div></div>
-      <div class="wrap">
-        <div class="expand" id="banAllWrap" hidden><div class="expand-bar"><span class="label">все баннеры</span><button class="btn btn-line" data-close="banAllWrap">Свернуть</button></div><div class="ban-all" id="banAll"></div><div class="more"><button class="btn btn-line" data-close="banAllWrap">Свернуть</button></div></div>
-        <div class="more"><button class="btn btn-line" data-open="banAllWrap">Открыть все баннеры</button></div>
+        <div class="expand" id="avaAll" hidden><div class="expand-bar"><div class="chips" id="wkFilter" role="group" aria-label="Фильтр работ"></div><button class="btn btn-line" data-close="avaAll">Свернуть</button></div><div class="wk-grid" id="avaGrid"></div><div class="more"><button class="btn btn-line" data-close="avaAll">Свернуть</button></div></div>
+        <div class="more"><button class="btn btn-line" data-open="avaAll">Показать все работы</button></div>
       </div>
     </section>
 
@@ -257,7 +240,7 @@
 </div>
 
 
-<script src="js/data.js?v=10h"></script>
-<script src="js/main.js?v=10h"></script>
+<script src="js/data.js?v=13"></script>
+<script src="js/main.js?v=13"></script>
 </body>
 </html>
