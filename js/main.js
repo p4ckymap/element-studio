@@ -102,7 +102,8 @@
   const KIND = { ava: 'Аватарка', ban: 'Баннер' };
   $('#avaCount').textContent = WORKS.length;
   const wall = $('#avaWall');
-  const colsFor = () => matchMedia('(max-width:760px)').matches ? 3 : matchMedia('(max-width:1100px)').matches ? 4 : 6;
+  // колонка около 170 px: на широком экране колонок больше, а не сами работы крупнее
+  const colsFor = () => Math.max(3, Math.min(14, Math.round(wall.clientWidth / 175)));
   const allSrc = WORKS.map(x => x.src);
   const dims = x => x.kind === 'ban' ? [x.w, x.h] : [480, 480];
   let wallCols = 0;
@@ -253,7 +254,10 @@
   const swipe = (node, fn) => { let sx = null; node.addEventListener('pointerdown', e => sx = e.clientX); node.addEventListener('pointerup', e => { if (sx == null) return; const dx = e.clientX - sx; sx = null; if (Math.abs(dx) > 50) fn(dx < 0 ? 1 : -1); }); };
 
   const lb = $('#lightbox'); let lbList = [], lbI = 0, lbT = '';
-  const lbShow = () => { const s = $('#lbStage'); s.innerHTML = ''; s.append(img(lbList[lbI], `${lbT}, ${lbI + 1} из ${lbList.length}`, false)); $('#lbCap').textContent = `${lbT}, ${lbI + 1} из ${lbList.length}`; $('#lbPrev').hidden = $('#lbNext').hidden = lbList.length < 2; };
+  // работа вписывается в окно целиком и при необходимости увеличивается, чтобы её не приходилось приближать
+  const lbFit = im => { if (!im.naturalWidth) return; const k = Math.min(Math.min(1200, innerWidth * .92) / im.naturalWidth, innerHeight * .78 / im.naturalHeight); im.style.width = Math.round(im.naturalWidth * k) + 'px'; };
+  addEventListener('resize', () => { const im = $('#lbStage img'); if (im && !lb.hidden) lbFit(im); });
+  const lbShow = () => { const s = $('#lbStage'); s.innerHTML = ''; const im = img(lbList[lbI], `${lbT}, ${lbI + 1} из ${lbList.length}`, false); im.complete ? lbFit(im) : im.addEventListener('load', () => lbFit(im)); s.append(im); $('#lbCap').textContent = `${lbT}, ${lbI + 1} из ${lbList.length}`; $('#lbPrev').hidden = $('#lbNext').hidden = lbList.length < 2; };
   const lbStep = d => { lbI = (lbI + d + lbList.length) % lbList.length; lbShow(); };
   function openLightbox(list, i, t) { lastFocus = document.activeElement; lbList = list; lbI = Math.max(0, i); lbT = t; lb.hidden = false; lock(true); lbShow(); $('#lbNext').focus(); }
   const closeLb = () => { lb.hidden = true; lock(false); lastFocus?.focus(); };
@@ -375,7 +379,7 @@
 
   /* ---------- бегущая строка под первым экраном ---------- */
   const MARK = '<svg viewBox="0 0 100 100" aria-hidden="true"><g fill="currentColor"><rect x="14" y="20" width="72" height="13" rx="6.5"/><rect x="14" y="43.5" width="72" height="13" rx="6.5"/><rect x="14" y="67" width="72" height="13" rx="6.5"/></g></svg>';
-  $$('.tape-run').forEach(t => { const g = t.dataset.tape.split('|').map(w => `<span>${w}<i>${MARK}</i></span>`).join(''); t.innerHTML = g.repeat(4); });
+  $$('.tape-run').forEach(t => { const g = t.dataset.tape.split('|').map(w => `<span>${w}<i></i></span>`).join(''); t.innerHTML = g.repeat(4); });
 
   addEventListener('keydown', e => {
     if (e.key === 'Escape' && top.classList.contains('open')) { setMenu(false); burger.focus(); return; }
